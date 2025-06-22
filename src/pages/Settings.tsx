@@ -4,22 +4,40 @@ import { useKeyStore } from '../hooks/useKeyStore';
 export default function Settings() {
   const { privateKey, publicKey } = useKeyStore();
   const [domain, setDomain] = useState(() => localStorage.getItem('emsg_domain') || 'emsg');
-  const [copied, setCopied] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [exported, setExported] = useState(false);
+  const [backupError, setBackupError] = useState<string | null>(null);
 
-  function handleCopyKey() {
-    if (privateKey) {
-      navigator.clipboard.writeText(privateKey);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+  function handleDomainChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setDomain(e.target.value);
+  }
+
+  function handleExportKey() {
+    if (!privateKey) return;
+    navigator.clipboard.writeText(privateKey);
+    setExported(true);
+    setTimeout(() => setExported(false), 2000);
+  }
+
+  function handleBackupKey() {
+    if (!privateKey) return;
+    try {
+      const blob = new Blob([privateKey], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'emsg-private-key.txt';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setBackupError('Failed to backup key');
     }
   }
 
   function handleSaveDomain(e: React.FormEvent) {
     e.preventDefault();
     localStorage.setItem('emsg_domain', domain);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
   }
 
   return (
@@ -30,7 +48,8 @@ export default function Settings() {
         <input
           className="w-full p-2 border border-gray-300 rounded dark:bg-gray-800 dark:text-gray-100 mb-2"
           value={domain}
-          onChange={e => setDomain(e.target.value)}
+          onChange={handleDomainChange}
+          placeholder="e.g. emsg, example.com"
         />
         <button
           className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
@@ -38,22 +57,32 @@ export default function Settings() {
         >
           Save Domain
         </button>
-        {saved && <span className="ml-2 text-green-600">Saved!</span>}
       </form>
       <div className="mb-6">
         <div className="font-medium mb-1">Public Key:</div>
         <div className="break-all text-blue-700 dark:text-blue-300 text-xs mb-2">{publicKey || <span className="text-gray-400">No key loaded</span>}</div>
         <div className="font-medium mb-1">Private Key:</div>
         <div className="break-all text-red-700 dark:text-red-300 text-xs mb-2">{privateKey || <span className="text-gray-400">No key loaded</span>}</div>
-        <button
-          className="px-3 py-1 rounded bg-yellow-500 text-white hover:bg-yellow-600"
-          onClick={handleCopyKey}
-          type="button"
-          disabled={!privateKey}
-        >
-          Export/Copy Private Key
-        </button>
-        {copied && <span className="ml-2 text-green-600">Copied!</span>}
+        <div className="flex space-x-2">
+          <button
+            className="px-3 py-1 rounded bg-yellow-500 text-white hover:bg-yellow-600"
+            onClick={handleExportKey}
+            disabled={!privateKey}
+            type="button"
+          >
+            Export/Copy Private Key
+          </button>
+          <button
+            className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
+            onClick={handleBackupKey}
+            disabled={!privateKey}
+            type="button"
+          >
+            Backup Key as File
+          </button>
+        </div>
+        {exported && <span className="ml-2 text-green-600">Copied!</span>}
+        {backupError && <div className="text-red-600">{backupError}</div>}
       </div>
       <div className="text-xs text-gray-400">
         (Keep your private key secure. Anyone with your private key can access your messages.)

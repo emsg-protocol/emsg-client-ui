@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { fetchInbox, Message } from '../services/api';
+import { fetchSentMessages, Message } from '../services/api';
 import { useKeyStore } from '../hooks/useKeyStore';
 import { Loading, ErrorMessage } from '../components/Status';
 
@@ -12,13 +12,10 @@ export default function SentMessages() {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    // Use the user's public key or fallback to default address
     const userAddress = publicKey ? publicKey : 'bob@emsg';
-    fetchInbox()
+    fetchSentMessages(userAddress)
       .then((msgs) => {
-        // Filter for messages sent by the current user
-        const sent = Array.isArray(msgs) ? msgs.filter(msg => msg.from === userAddress) : [];
-        setMessages(sent);
+        setMessages(Array.isArray(msgs) ? msgs : []);
       })
       .catch((e) => setError(e.message || 'Failed to load sent messages'))
       .finally(() => setLoading(false));

@@ -10,6 +10,7 @@ import SystemMessages from './pages/SystemMessages';
 import KeyPair from './pages/KeyPair';
 import Settings from './pages/Settings';
 import DevPanel from './pages/DevPanel';
+import Login from './pages/Login';
 
 function useTheme() {
   const [isDark, setIsDark] = React.useState(() =>
@@ -28,6 +29,7 @@ function useTheme() {
 }
 
 import { useEmsgWebSocket } from './hooks/useEmsgWebSocket';
+import { useKeyStore } from './hooks/useKeyStore';
 
 function NavBar() {
   const [isDark, setIsDark] = useTheme();
@@ -73,12 +75,15 @@ function NavBar() {
 }
 
 function App() {
+  const { privateKey } = useKeyStore();
   return (
     <BrowserRouter>
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
         <NavBar />
         <div className="max-w-2xl mx-auto mt-6">
           <Routes>
+            {!privateKey && <Route path="*" element={<Login />} />}
+            <Route path="/login" element={<Login />} />
             <Route path="/" element={<Inbox />} />
             <Route path="/compose" element={<ComposeMessage />} />
             <Route path="/sent" element={<SentMessages />} />

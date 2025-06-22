@@ -1,117 +1,106 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useKeyStore } from '../hooks/useKeyStore';
 import { wasm } from '../services/api';
-import { Button } from '../components/Button';
+import { useEmsgWebSocket, EmsgWsEvent } from '../hooks/useEmsgWebSocket';
 import { Loading, ErrorMessage } from '../components/Status';
 
-interface GroupMessage {
-  id: string;
-  from: string;
-  group: string;
-  content: string;
-  timestamp: string;
-  system?: boolean;
-}
-
 export default function GroupChat() {
-  const { privateKey, publicKey } = useKeyStore();
-  const [groupId, setGroupId] = useState('team-alpha');
-  const [messages, setMessages] = useState<GroupMessage[]>([]);
-  const [message, setMessage] = useState('');
+  const { publicKey, privateKey } = useKeyStore();
+  const [group, setGroup] = useState('default-group');
+  const [messages, setMessages] = useState<any[]>([]);
+  const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [fetching, setFetching] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState(null);
+  const [wsStatus, setWsStatus] = useState('connecting');
 
-  // Fetch group messages (simulate by filtering all messages for group)
-  useEffect(() => {
-    async function fetchGroupMessages() {
-      setFetching(true);
-      setError(null);
-      try {
-        if (!publicKey) throw new Error('No user key loaded');
-        // Fetch all messages for user
-        const allMsgs = await wasm.getMessages(publicKey);
-        // Filter for group messages
-        const groupMsgs = Array.isArray(allMsgs)
-          ? allMsgs.filter((msg: any) => msg.group === groupId)
-          : [];
-        setMessages(groupMsgs);
-      } catch (e: any) {
-        setError(e.message || 'Failed to load group messages');
-      } finally {
-        setFetching(false);
-      }
+  // Handle incoming group messages
+  const handleWsMessage = useCallback((event: EmsgWsEvent) => {
+    if (event.type === 'group_message' && event.payload && event.payload.group === group) {
+      setMessages((prev) => [event.payload, ...prev]);
     }
-    fetchGroupMessages();
-  }, [publicKey, groupId, success]);
+  }, [group]);
 
-  // Send group message
-  async function handleSend(e: React.FormEvent) {
+  const ws = useEmsgWebSocket(
+    'ws://localhost:8080/ws',
+    handleWsMessage,
+    {
+      token: privateKey || undefined,
+      allowedTypes: ['group_message'],
+      onError: (err) => setError(err.message),
+    }
+  );
+
+  useEffect(() => {
+    setWsStatus(ws.status);
+  }, [ws.status]);
+
+  // Fetch initial group messages (mocked for now)
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    // TODO: Replace with real group fetch from WASM/REST
+    setMessages([]);
+    setLoading(false);
+  }, [group]);
+
+  async function handleSend(e) {
     e.preventDefault();
     setError(null);
-    setSuccess(false);
+    if (!input.trim()) return;
     setLoading(true);
     try {
-      if (!privateKey || !publicKey) throw new Error('You must generate or import a key pair first.');
+      if (!privateKey || !publicKey) throw new Error('No key pair');
       await wasm.initClient(privateKey);
-      // For group, we use groupId as the 'to' field and set group property
-      const sendRes = await wasm.sendMessage(publicKey, groupId, message);
-      if (sendRes.error) throw new Error(sendRes.error);
-      setSuccess(true);
-      setMessage('');
-    } catch (e: any) {
-      setError(e.message || 'Failed to send group message');
+      // For demo, send as group message type
+      // TODO: Use real group send API
+      ws.send({ type: 'group_message', payload: { from: publicKey, group, content: input, timestamp: new Date().toISOString() } });
+      setInput('');
+    } catch (e) {
+      setError(e.message || 'Failed to send');
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="p-4">
-      <h2 className="text-xl font-semibold mb-4">👥 Group Chat</h2>
-      <div className="mb-4">
-        <label className="block font-medium mb-1">Group ID:</label>
-        <input
-          className="w-full p-2 border border-gray-300 rounded dark:bg-gray-800 dark:text-gray-100 mb-2"
-          value={groupId}
-          onChange={e => setGroupId(e.target.value)}
-          placeholder="Enter group ID"
-        />
+    <div className="p-4 max-w-2xl mx-auto">
+      <h2 className="text-xl font-semibold mb-4">👥 Group Chat: {group}</h2>
+      <div className="mb-2 text-sm">
+        WebSocket: <span className={
+          wsStatus === 'open' ? 'text-green-600' :
+          wsStatus === 'connecting' ? 'text-yellow-600' :
+          wsStatus === 'error' ? 'text-red-600' :
+          'text-gray-500'}>{wsStatus}</span>
       </div>
-      {fetching && <Loading />}
+      {loading && <Loading />}
       {error && <ErrorMessage error={error} />}
-      {!fetching && !error && (
-        <ul className="space-y-3 mb-6">
-          {messages.length === 0 && <li className="text-gray-400">No group messages.</li>}
-          {messages.map(msg => (
-            <li key={msg.id} className="border rounded p-3 bg-white dark:bg-gray-800">
-              <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                <span>From: {msg.from}</span> <span className="ml-2">{new Date(msg.timestamp).toLocaleString()}</span>
-              </div>
-              <div className={msg.system ? 'text-blue-700 dark:text-blue-300 font-medium' : 'text-gray-900 dark:text-gray-100'}>
-                {msg.content}
-              </div>
-              {msg.system && <div className="text-xs text-blue-500 mt-1">System Message</div>}
-            </li>
-          ))}
-        </ul>
-      )}
-      <form onSubmit={handleSend} className="space-y-2 max-w-md">
-        <textarea
-          className="w-full min-h-[60px] p-2 border border-gray-300 rounded dark:bg-gray-800 dark:text-gray-100"
-          placeholder="Type a group message..."
-          value={message}
-          onChange={e => setMessage(e.target.value)}
-          required
+      <form onSubmit={handleSend} className="flex gap-2 mb-4">
+        <input
+          className="flex-1 p-2 border rounded dark:bg-gray-800 dark:text-gray-100"
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          placeholder="Type a message..."
+          disabled={loading}
         />
-        <div>
-          <Button type="submit" disabled={!message.trim() || loading}>
-            {loading ? 'Sending...' : 'Send to Group'}
-          </Button>
-        </div>
-        {success && <div className="text-green-600">Message sent!</div>}
+        <button
+          className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+          type="submit"
+          disabled={loading || !input.trim()}
+        >
+          Send
+        </button>
       </form>
+      <ul className="space-y-3">
+        {messages.length === 0 && <li className="text-gray-400">No group messages.</li>}
+        {messages.map((msg, i) => (
+          <li key={i} className="border rounded p-3 bg-white dark:bg-gray-800">
+            <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+              <span>From: {msg.from}</span> <span className="ml-2">{new Date(msg.timestamp).toLocaleString()}</span>
+            </div>
+            <div className="text-gray-900 dark:text-gray-100">{msg.content}</div>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

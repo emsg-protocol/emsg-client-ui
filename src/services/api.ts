@@ -5,7 +5,7 @@
 import * as emsgWasm from './emsg-wasm';
 
 // Modes: 'mock', 'rest', 'wasm'
-const API_MODE: 'mock' | 'rest' | 'wasm' = 'wasm';
+const API_MODE: 'mock' | 'rest' | 'wasm' = (import.meta.env.VITE_API_MODE as any) || 'wasm';
 
 export type Message = {
   id: string;
@@ -129,6 +129,21 @@ export function sendMessage(message: Omit<Message, 'id' | 'timestamp'>): Promise
       timestamp: new Date().toISOString(),
     };
   });
+}
+
+export function fetchSentMessages(userId?: string): Promise<Message[]> {
+  if (API_MODE === 'mock') {
+    // Filter mockMessages by sender
+    return Promise.resolve(mockMessages.filter(m => m.from === (userId || mockUser.id)));
+  }
+  if (API_MODE === 'rest') {
+    // REST endpoint for sent messages (not implemented)
+    return Promise.resolve([]);
+  }
+  // WASM: get messages for current user, then filter by from === userId
+  return wasmGetMessages(userId || 'bob@emsg').then((msgs: Message[]) =>
+    Array.isArray(msgs) ? msgs.filter(m => m.from === (userId || 'bob@emsg')) : []
+  );
 }
 
 export const wasm = {
