@@ -3,6 +3,7 @@ import { useKeyStore } from '../hooks/useKeyStore';
 import { wasm } from '../services/api';
 import { useEmsgWebSocket, EmsgWsEvent } from '../hooks/useEmsgWebSocket';
 import { Loading, ErrorMessage } from '../components/Status';
+import ChatMessage from '../components/ChatMessage';
 
 export default function GroupChat() {
   const { publicKey, privateKey } = useKeyStore();
@@ -74,33 +75,44 @@ export default function GroupChat() {
       </div>
       {loading && <Loading />}
       {error && <ErrorMessage error={error} />}
-      <form onSubmit={handleSend} className="flex gap-2 mb-4">
+      <div className="flex flex-col h-[60vh] bg-gray-50 dark:bg-gray-900 rounded-lg shadow-inner p-2 mb-2 overflow-y-auto">
+        <div className="flex flex-col-reverse gap-2 flex-1 overflow-y-auto">
+          {messages.length === 0 && <div className="text-gray-400">No group messages.</div>}
+          {messages.slice().reverse().map((msg, i) => (
+            // 'key' is only for the React element, not a prop for ChatMessage
+            <React.Fragment key={i}>
+              <ChatMessage
+                from={msg.from}
+                content={msg.content}
+                timestamp={msg.timestamp}
+                isOwn={msg.from === publicKey}
+              />
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+      <form
+        onSubmit={handleSend}
+        className="w-full flex items-center gap-3 px-4 py-3 md:px-6 md:py-4 bg-white/80 dark:bg-gray-900/80 border-t border-gray-200 dark:border-gray-800 shadow-xl rounded-2xl backdrop-blur-lg fixed bottom-0 left-0 right-0 md:left-auto md:right-auto md:mx-12 md:mb-8 z-20"
+        style={{ maxWidth: '700px', margin: '0 auto' }}
+      >
         <input
-          className="flex-1 p-2 border rounded dark:bg-gray-800 dark:text-gray-100"
+          type="text"
+          className="flex-1 rounded-full px-5 py-3 border border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400/60 dark:bg-gray-900/70 dark:text-white bg-gray-100/70 shadow-inner text-base"
+          placeholder="Type a message..."
           value={input}
           onChange={e => setInput(e.target.value)}
-          placeholder="Type a message..."
           disabled={loading}
         />
         <button
-          className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
           type="submit"
+          className="flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-br from-green-400 to-green-600 text-white font-bold shadow-lg hover:from-green-500 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-400/60 transition-all text-base"
           disabled={loading || !input.trim()}
         >
-          Send
+          <span className="hidden md:inline">Send</span>
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
         </button>
       </form>
-      <ul className="space-y-3">
-        {messages.length === 0 && <li className="text-gray-400">No group messages.</li>}
-        {messages.map((msg, i) => (
-          <li key={i} className="border rounded p-3 bg-white dark:bg-gray-800">
-            <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-              <span>From: {msg.from}</span> <span className="ml-2">{new Date(msg.timestamp).toLocaleString()}</span>
-            </div>
-            <div className="text-gray-900 dark:text-gray-100">{msg.content}</div>
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }

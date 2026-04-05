@@ -94,6 +94,31 @@ async function wasmGetMessages(user: string) {
   return emsgWasm.emsg_getMessages(user);
 }
 
+async function wasmRegisterUser(
+  address: string,
+  pubKeyBase64: string,
+  authMode: 'password' | 'key',
+  encryptedPrivateKey?: string,
+  salt?: string,
+  iv?: string
+) {
+  return emsgWasm.emsg_registerUser(address, pubKeyBase64, authMode, encryptedPrivateKey, salt, iv);
+}
+
+async function wasmGetAuthInfo(address: string) {
+  return emsgWasm.emsg_getAuthInfo(address);
+}
+
+async function wasmUpdateEncryptedKey(
+  address: string,
+  authMode: 'password' | 'key',
+  encryptedPrivateKey?: string,
+  salt?: string,
+  iv?: string
+) {
+  return emsgWasm.emsg_updateEncryptedKey(address, authMode, encryptedPrivateKey, salt, iv);
+}
+
 // --- Unified API ---
 export function fetchInbox(): Promise<Message[]> {
   if (API_MODE === 'mock') return Promise.resolve(mockMessages);
@@ -152,4 +177,7 @@ export const wasm = {
   initClient: wasmInitClient,
   sendMessage: wasmSendMessage,
   getMessages: wasmGetMessages,
+  registerUser: wasmRegisterUser,
+  getAuthInfo: wasmGetAuthInfo,
+  updateEncryptedKey: wasmUpdateEncryptedKey,
 };

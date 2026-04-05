@@ -1,15 +1,25 @@
-import { create } from 'zustand';
+import { useAuthStore } from './useAuthStore';
 
 export interface KeyState {
-  privateKey: string | null; // hex or base64
-  publicKey: string | null; // hex or base64
+  privateKey: string | null;
+  publicKey: string | null;
   setKeys: (priv: string, pub: string) => void;
   clearKeys: () => void;
 }
 
-export const useKeyStore = create<KeyState>((set) => ({
-  privateKey: null,
-  publicKey: null,
-  setKeys: (privateKey, publicKey) => set({ privateKey, publicKey }),
-  clearKeys: () => set({ privateKey: null, publicKey: null }),
-}));
+export function useKeyStore(): KeyState {
+  const privateKey = useAuthStore((s) => s.privateKey);
+  const publicKey = useAuthStore((s) => s.publicKey);
+
+  return {
+    privateKey,
+    publicKey,
+    setKeys: (priv: string, pub: string) => {
+      const address = useAuthStore.getState().address;
+      useAuthStore.getState().setAuth(address || '', 'key', priv, pub);
+    },
+    clearKeys: () => {
+      useAuthStore.getState().logout();
+    },
+  };
+}

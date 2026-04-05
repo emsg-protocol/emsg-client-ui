@@ -4,6 +4,7 @@ import { useKeyStore } from '../hooks/useKeyStore';
 import { Loading, ErrorMessage } from '../components/Status';
 import { useEmsgWebSocket, EmsgWsEvent } from '../hooks/useEmsgWebSocket';
 import { useMessageStore } from '../hooks/useMessageStore';
+import ChatMessage from '../components/ChatMessage';
 
 export default function Inbox() {
   const { publicKey, privateKey } = useKeyStore();
@@ -65,18 +66,21 @@ export default function Inbox() {
       {loading && <Loading />}
       {error && <ErrorMessage error={error} />}
       {!loading && !error && (
-        <ul className="space-y-3">
-          {messages.length === 0 && <li className="text-gray-400">No messages.</li>}
-          {messages.map(msg => (
-            <li key={msg.id} className="border rounded p-3 bg-white dark:bg-gray-800">
-              <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                <span>From: {msg.from}</span> <span className="ml-2">{new Date(msg.timestamp).toLocaleString()}</span>
-              </div>
-              <div className="text-gray-900 dark:text-gray-100">{msg.content}</div>
-              {msg.system && <div className="text-xs text-blue-500 mt-1">System Message</div>}
-            </li>
+        <div className="flex flex-col-reverse gap-2 max-h-[60vh] overflow-y-auto pb-2">
+          {messages.length === 0 && <div className="text-gray-400">No messages.</div>}
+          {messages.slice().reverse().map(msg => (
+            // 'key' is only for the React element, not a prop for ChatMessage
+            <React.Fragment key={msg.id}>
+              <ChatMessage
+                from={msg.from}
+                content={msg.content}
+                timestamp={msg.timestamp}
+                isOwn={msg.from === publicKey}
+                system={msg.system}
+              />
+            </React.Fragment>
           ))}
-        </ul>
+        </div>
       )}
     </div>
   );

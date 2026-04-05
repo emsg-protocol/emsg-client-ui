@@ -7,6 +7,14 @@
   </head>
   <body>
     <div id="root"></div>
+    <script src="/wasm_exec.js"></script>
+    <script>
+      const go = new Go();
+      WebAssembly.instantiateStreaming(fetch('/emsg.wasm'), go.importObject)
+        .then(result => { go.run(result.instance); window.__emsgWasmReady = true; })
+        .catch(err => { window.__emsgWasmError = err.message; });
+    </script>
+    <script type="module" src="/src/wasm-init.ts"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
